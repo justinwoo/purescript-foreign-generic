@@ -11,7 +11,7 @@ Generic deriving for `purescript-foreign`.
 ## Example Usage
 
 ```purescript
-import Data.Foreign.Class (class AsForeign, class IsForeign, readJSON, write)
+import Data.Foreign.Generic.Classes (class Decode, class Encode, readJSON, write)
 import Data.Foreign.Generic (defaultOptions, readGeneric, toForeignGeneric)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)

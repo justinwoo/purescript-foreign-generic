@@ -7,16 +7,47 @@ import Control.Monad.Except (mapExcept)
 import Data.Array (length, zipWith, (..))
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Foreign (F, Foreign, ForeignError(..), fail, readArray, readBoolean, readChar, readInt, readNumber, readString, toForeign)
+import Data.Foreign (F, Foreign, ForeignError(..), fail, isNull, isUndefined, readArray, readBoolean, readChar, readInt, readNumber, readString, toForeign)
 import Data.Foreign.Generic.Types (Options, SumEncoding(..))
 import Data.Foreign.Index (index)
 import Data.Generic.Rep (Argument(Argument), Constructor(Constructor), Field(Field), NoArguments(NoArguments), NoConstructors, Product(Product), Rec(Rec), Sum(Inr, Inl))
 import Data.List (List(..), fromFoldable, null, singleton, toUnfoldable, (:))
 import Data.Maybe (Maybe(..), maybe)
 import Data.Monoid (mempty)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Traversable (sequence)
 import Type.Proxy (Proxy(..))
+
+foreign import writeNull :: Foreign
+foreign import writeUndefined :: Foreign
+
+newtype Null a = Null (Maybe a)
+
+derive instance newtypeNull :: Newtype (Null a) _
+derive instance eqNull :: (Eq a) => Eq (Null a)
+derive instance ordNull :: (Ord a) => Ord (Null a)
+
+instance showNull :: (Show a) => Show (Null a) where
+  show x = "(Null " <> show (unwrap x) <> ")"
+
+newtype Undefined a = Undefined (Maybe a)
+
+derive instance newtypeUndefined :: Newtype (Undefined a) _
+derive instance eqUndefined :: (Eq a) => Eq (Undefined a)
+derive instance ordUndefined :: (Ord a) => Ord (Undefined a)
+
+instance showUndefined :: (Show a) => Show (Undefined a) where
+  show x = "(Undefined " <> show (unwrap x) <> ")"
+
+newtype NullOrUndefined a = NullOrUndefined (Maybe a)
+
+derive instance newtypeNullOrUndefined :: Newtype (NullOrUndefined a) _
+derive instance eqNullOrUndefined :: (Eq a) => Eq (NullOrUndefined a)
+derive instance ordNullOrUndefined :: (Ord a) => Ord (NullOrUndefined a)
+
+instance showNullOrUndefined :: (Show a) => Show (NullOrUndefined a) where
+  show x = "(NullOrUndefined " <> show (unwrap x) <> ")"
 
 class Decode a where
   read :: Foreign -> F a
@@ -47,6 +78,21 @@ instance arrayDecode :: Decode a => Decode (Array a) where
     readElement :: Int -> Foreign -> F a
     readElement i value = mapExcept (lmap (map (ErrorAtIndex i))) (read value)
 
+instance nullDecode :: Decode a => Decode (Null a) where
+  read x
+    | isNull x = pure (Null Nothing)
+    | otherwise = Null <<< Just <$> read x
+
+instance undefinedDecode :: Decode a => Decode (Undefined a) where
+  read x
+    | isUndefined x = pure (Undefined Nothing)
+    | otherwise = Undefined <<< Just <$> read x
+
+instance nulloOrUndefinedDecode :: Decode a => Decode (NullOrUndefined a) where
+  read x
+    | isNull x || isUndefined x = pure (NullOrUndefined Nothing)
+    | otherwise = NullOrUndefined <<< Just <$> read x
+
 class Encode a where
   write :: a -> Foreign
 
@@ -70,6 +116,15 @@ instance intEncode :: Encode Int where
 
 instance arrayEncode :: Encode a => Encode (Array a) where
   write = toForeign <<< map write
+
+instance nullAsForeign :: Encode a => Encode (Null a) where
+  write (Null a) = maybe writeNull write a
+
+instance undefinedAsForeign :: Encode a => Encode (Undefined a) where
+  write (Undefined a) = maybe writeUndefined write a
+
+instance nullOrUndefinedAsForeign :: Encode a => Encode (NullOrUndefined a) where
+  write (NullOrUndefined a) = write (Null a)
 
 class GenericDecode a where
   decodeOpts :: Options -> Foreign -> F a
