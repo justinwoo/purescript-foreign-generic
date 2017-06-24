@@ -9,6 +9,7 @@ module Data.Foreign.Generic
   ) where
 
 import Prelude
+
 import Data.Foreign (F, Foreign)
 import Data.Foreign.Class (class Decode, class Encode, decode, encode)
 import Data.Foreign.Generic.Class (class GenericDecode, class GenericEncode, decodeOpts, encodeOpts)
@@ -22,6 +23,7 @@ import Global.Unsafe (unsafeStringify)
 -- | - Represent sum types as records with `tag` and `contents` fields
 -- | - Unwrap single arguments
 -- | - Don't unwrap single constructors
+-- | - Use the constructor names as-is
 defaultOptions :: Options
 defaultOptions =
   { sumEncoding:
@@ -31,6 +33,7 @@ defaultOptions =
         }
   , unwrapSingleConstructors: false
   , unwrapSingleArguments: true
+  , constructorTagTransform: id
   }
 
 -- | Read a value which has a `Generic` type.

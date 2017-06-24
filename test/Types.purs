@@ -1,15 +1,18 @@
 module Test.Types where
 
 import Prelude
+
 import Data.Bifunctor (class Bifunctor)
 import Data.Foreign (ForeignError(ForeignError), fail, readArray, toForeign)
 import Data.Foreign.Class (class Encode, class Decode, encode, decode)
 import Data.Foreign.Generic (defaultOptions, genericDecode, genericEncode)
+import Data.Foreign.Generic.Types (Options, SumEncoding(..))
 import Data.Foreign.NullOrUndefined (NullOrUndefined)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Tuple (Tuple(..))
+import SumEncoding (genericDecodeUnaryConstructors, genericEncodeUnaryConstructors)
 
 newtype TupleArray a b = TupleArray (Tuple a b)
 
@@ -99,3 +102,16 @@ instance dUT :: Decode UndefinedTest where
   decode = genericDecode $ defaultOptions
 instance eUT :: Encode UndefinedTest where
   encode = genericEncode $ defaultOptions
+
+data Fruit
+  = Apple
+  | Banana
+  | Frikandel
+
+derive instance eqFruit :: Eq Fruit
+derive instance geFruit :: Generic Fruit _
+
+instance dFruit :: Decode Fruit where
+  decode = genericDecodeUnaryConstructors defaultOptions
+instance eFruit :: Encode Fruit where
+  encode = genericEncodeUnaryConstructors defaultOptions

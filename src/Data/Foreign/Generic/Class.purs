@@ -1,7 +1,7 @@
 module Data.Foreign.Generic.Class where
 
 import Prelude
-import Data.StrMap as S
+
 import Control.Alt ((<|>))
 import Control.Monad.Except (mapExcept)
 import Data.Bifunctor (lmap)
@@ -14,6 +14,7 @@ import Data.Generic.Rep (Argument(..), Constructor(..), Field(..), NoArguments(.
 import Data.List (List(..), fromFoldable, null, singleton, toUnfoldable, (:))
 import Data.Maybe (Maybe(..), maybe)
 import Data.Monoid (mempty)
+import Data.StrMap as S
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Type.Proxy (Proxy(..))
 
@@ -57,14 +58,14 @@ instance genericDecodeConstructor
                TaggedObject { tagFieldName, contentsFieldName } -> do
                  tag <- mapExcept (lmap (map (ErrorAtProperty contentsFieldName))) do
                    tag <- index f tagFieldName >>= readString
-                   unless (tag == ctorName) $
+                   unless (opts.constructorTagTransform tag == ctorName) $
                      fail (ForeignError ("Expected " <> show ctorName <> " tag"))
                    pure tag
                  args <- mapExcept (lmap (map (ErrorAtProperty contentsFieldName)))
                            (index f contentsFieldName >>= readArguments)
                  pure (Constructor args)
     where
-      ctorName = reflectSymbol (SProxy :: SProxy name)
+      ctorName = opts.constructorTagTransform $ reflectSymbol (SProxy :: SProxy name)
 
       numArgs = countArgs (Proxy :: Proxy rep)
 
@@ -93,9 +94,8 @@ instance genericEncodeConstructor
                TaggedObject { tagFieldName, contentsFieldName } ->
                  toForeign (S.singleton tagFieldName (toForeign ctorName)
                            `S.union` maybe S.empty (S.singleton contentsFieldName) (encodeArgsArray args))
-
     where
-      ctorName = reflectSymbol (SProxy :: SProxy name)
+      ctorName = opts.constructorTagTransform $ reflectSymbol (SProxy :: SProxy name)
 
       encodeArgsArray :: rep -> Maybe Foreign
       encodeArgsArray = unwrapArguments <<< toUnfoldable <<< encodeArgs
